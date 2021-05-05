@@ -1,19 +1,52 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Dynamic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using ImpromptuInterface;
 using NUnit.Framework;
 
 namespace UnitTest
 {
+    public interface ILog
+    {
+        void WriteMessage(string msg);
+    }
+
+    public class ConsoleLog : ILog
+    {
+        public void WriteMessage(string msg)
+        {
+            Console.WriteLine(msg);
+        }
+    }
+
+    public class Null<T> : DynamicObject where T:class
+    {
+
+        public static T Instance => new Null<T>().ActLike<T>();
+
+        public override bool TryInvokeMember(InvokeMemberBinder binder, object?[]? args, out object? result)
+        {
+            result = default;
+
+            if (typeof(T).GetMethod(binder.Name)?.ReturnType == typeof(void))
+                return true;
+
+            Activator.CreateInstance(typeof(T).GetMethod(binder.Name)?.ReturnType??null);
+            return true;
+        }
+    }
+
    public class BankAccount
     {
         public int Balance { get; set; }
-
-        public BankAccount(int balance)
+        private readonly ILog _log;
+        public BankAccount(int balance, ILog log)
         {
             Balance = balance;
+            _log = log;
         }
 
         public void Deposit(int amount)
@@ -21,6 +54,7 @@ namespace UnitTest
             if (amount < 0)
                 throw new ArgumentException("Deposit Amount Must Be Positive");
 
+            _log.WriteMessage("Depositing...");
             Balance += amount;
         }
 
@@ -47,7 +81,7 @@ namespace UnitTest
        [SetUp]
        public void SetUp()
        {
-           ba = new BankAccount(50);
+           ba = new BankAccount(50, Null<ILog>.Instance);
        }
 
 
@@ -94,5 +128,15 @@ namespace UnitTest
                 Assert.That(ba.Balance,Is.EqualTo(expectedBalance));
             });
         }
-   }
+
+        [Test]
+        public void DepositIntegrationTest()
+        {
+            ba.Deposit(100);
+
+            Assert.That(ba.Balance,Is.EqualTo(150));
+        }
+
+       
+    }
 }
