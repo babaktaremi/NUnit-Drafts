@@ -9,6 +9,12 @@ using Range = Moq.Range;
 
 namespace UnitTest
 {
+    public interface IBaz
+    {
+         string Name { get; set; }
+    }
+
+
     public interface IFoo
     {
         bool DoSomething(string value);
@@ -18,6 +24,8 @@ namespace UnitTest
         string Name { get; set; }
         int SomeOtherProperty { get; set; }
         bool Add(int amount);
+        IBaz Baz { get; set; }
+        int GetCount();
     }
 
 
@@ -94,6 +102,71 @@ namespace UnitTest
             Assert.That(mock.Object.Submit(ref account),Is.EqualTo(true));
 
             Assert.That(mock.Object.Submit(ref account2),Is.EqualTo(false));
+        }
+
+        [Test]
+        public void ProcessString()
+        {
+            var mock = new Mock<IFoo>();
+
+            mock.Setup(foo => foo.ProcessString(It.IsAny<string>())).Returns((string s) => s.ToLowerInvariant());
+
+            var calls = 0;
+
+            mock.Setup(foo => foo.GetCount()).Returns(() => calls).Callback(() => ++calls);
+
+            mock.Object.GetCount();
+            mock.Object.GetCount();
+
+            Assert.That(mock.Object.ProcessString("ABC") ,Is.EqualTo("abc"));
+            Assert.That(calls,Is.EqualTo(2));
+        }
+
+        [Test]
+        public void TestException()
+        {
+            var mock = new Mock<IFoo>();
+
+            mock.Setup(foo => foo.DoSomething("kill")).Throws<InvalidOperationException>();
+
+            Assert.Throws<InvalidOperationException>(() => mock.Object.DoSomething("kill"));
+        }
+
+        [Test]
+        public void PropertyTest()
+        {
+            var mock = new Mock<IFoo>();
+
+            mock.Setup(foo => foo.Name).Returns("bar");
+
+            Assert.That(mock.Object.Name,Is.EqualTo("bar"));
+
+            mock.Setup(foo => foo.Baz.Name).Returns("Baz");
+            Assert.That(mock.Object.Baz.Name,Is.EqualTo("Baz"));
+
+            bool setterCalled = false;
+
+            mock.SetupSet(foo =>
+            {
+                foo.Name = It.IsAny<string>();
+
+            }).Callback<string>(s =>
+            {
+                setterCalled = true;
+            });
+
+            mock.Object.Name = "def";
+
+            Assert.IsTrue(setterCalled);
+
+
+            mock.SetupProperty(foo => foo.Name);
+
+            IFoo f = mock.Object;
+
+            f.Name = "abc";
+
+            Assert.That(f.Name,Is.EqualTo("abc"));
         }
     }
 }
