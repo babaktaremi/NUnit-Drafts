@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using ImpromptuInterface;
+using Moq;
 using NUnit.Framework;
 
 namespace UnitTest
@@ -81,11 +82,13 @@ namespace UnitTest
        [SetUp]
        public void SetUp()
        {
-           ba = new BankAccount(50, Null<ILog>.Instance);
+           var log = new Mock<ILog>();
+           ba = new BankAccount(50,log.Object );
        }
 
 
        [Test]
+       
         public void BankAccountShouldIncreaseOnPositiveDeposit()
         {
 
