@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Moq;
+using Moq.Protected;
 using NUnit.Framework;
 using Range = Moq.Range;
 
@@ -31,6 +32,12 @@ namespace UnitTest
         }
     }
 
+    public abstract class Person
+    {
+        protected int SSN { get; set; }
+
+        protected abstract void Execute(string cmd);
+    }
 
     public delegate void AlienAbduction(int galaxy);
 
@@ -263,6 +270,17 @@ namespace UnitTest
 
             mock.VerifyGet(foo => foo.Name,Times.Exactly(1));
             mock.VerifySet(foo => foo.SomeOtherProperty,Times.Exactly(1));
+        }
+
+        [Test]
+        public void ProtectedMemberTest()
+        {
+            var mock = new Mock<Person>();
+
+            mock.Protected().SetupGet<int>("SSN").Returns(42);
+
+            mock.Protected().Setup<string>("Execute",ItExpr.IsAny<string>());
+
         }
     }
 }
