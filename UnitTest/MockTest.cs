@@ -14,6 +14,51 @@ namespace UnitTest
          string Name { get; set; }
     }
 
+    public class Consumer
+    {
+        private readonly IFoo _foo;
+
+        public Consumer(IFoo foo)
+        {
+            _foo = foo;
+        }
+
+        public void Hello()
+        {
+            _foo.DoSomething("ping");
+            var name = _foo.Name;
+            _foo.SomeOtherProperty = 123;
+        }
+    }
+
+
+    public delegate void AlienAbduction(int galaxy);
+
+    public interface IAnimal
+    {
+        event EventHandler FallsIll;
+        void Stumble();
+
+        event AlienAbduction AlienAbduction;
+    }
+
+    public class Doctor
+    {
+        public int TimesCured { get; set; }
+        public int AbductionObserved { get; set; }
+        public Doctor(IAnimal animal)
+        {
+            animal.FallsIll += (sender, args) =>
+            {
+                TimesCured++;
+                Console.WriteLine("I will Cure You");
+            };
+
+            animal.AlienAbduction += galaxy => ++AbductionObserved;
+        }
+
+
+    }
 
     public interface IFoo
     {
@@ -167,6 +212,57 @@ namespace UnitTest
             f.Name = "abc";
 
             Assert.That(f.Name,Is.EqualTo("abc"));
+        }
+
+        [Test]
+        public void TestEvents()
+        {
+            var mock = new Mock<IAnimal>();
+
+            var doctor = new Doctor(mock.Object);
+
+            mock.Raise(animal => animal.FallsIll+=null,
+                new EventArgs());
+
+            mock.Setup(animal => animal.Stumble()).Raises(animal => animal.FallsIll += null,
+                new EventArgs());
+
+            mock.Object.Stumble();
+
+            mock.Raise(animal => animal.AlienAbduction+=null,42);
+
+            Assert.That(doctor.TimesCured,Is.EqualTo(2));
+            Assert.That(doctor.AbductionObserved,Is.EqualTo(1));
+        }
+
+        [Test]
+        public void TestCallBacks()
+        {
+            var mock = new Mock<IFoo>();
+
+            int x = 0;
+
+            mock.Setup(foo => foo.DoSomething(It.IsAny<string>())).Returns(true).Callback<string>((s) => x += s.Length);
+
+            mock.Object.DoSomething("abc");
+
+            Assert.That(x,Is.EqualTo(3));
+        }
+
+        [Test]
+        public void VerificationTest()
+        {
+            var mock = new Mock<IFoo>();
+
+            var consumer = new Consumer(mock.Object);
+
+            consumer.Hello(); 
+
+            mock.Verify(foo => foo.DoSomething("ping"),Times.AtLeastOnce);
+            mock.Verify(foo=>foo.DoSomething("pong"),Times.Never);
+
+            mock.VerifyGet(foo => foo.Name,Times.Exactly(1));
+            mock.VerifySet(foo => foo.SomeOtherProperty,Times.Exactly(1));
         }
     }
 }
